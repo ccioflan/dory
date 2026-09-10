@@ -3,6 +3,12 @@ DORY: Deployment ORiented to memorY
 
 DORY is an automatic tool to deploy DNNs on low-cost MCUs with typically less than 1MB of on-chip SRAM memory. 
 
+
+### FORK Note:
+
+The present fork supports the partial deployment of networks. The layers that are skipped are supposed to be deployed with train-capable tools (e.g., https://github.com/pulp-platform/pulp-trainlib), thus enabling on-device learning through mixed deployment.
+
+
 ### Reference
 If you use the DORY tool to deploy your models, please make sure to cite our paper: https://ieeexplore.ieee.org/document/9381618 (preprint available also at https://arxiv.org/abs/2008.07127)
 ```
