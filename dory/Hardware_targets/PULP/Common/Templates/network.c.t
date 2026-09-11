@@ -62,11 +62,11 @@ void ${prefix}network_initialize() {
   L3_input = ram_malloc(L3_INPUT_SIZE);
   L3_output = ram_malloc(L3_OUTPUT_SIZE);
 
-#ifdef VERBOSE
+% if 'Yes' in performance:
   printf("\nL3 Buffer alloc initial\t@ %d:\t%s\n", (unsigned int)L3_weights, L3_weights?"Ok":"Failed");
   printf("\nL3 Buffer alloc initial\t@ %d:\t%s\n", (unsigned int)L3_input, L3_input?"Ok":"Failed");
   printf("\nL3 Buffer alloc initial\t@ %d:\t%s\n", (unsigned int)L3_output, L3_output?"Ok":"Failed");
-#endif
+% endif
 
   void *w_ptr = L3_weights;
   for (int i = 0; i < ${weights_number}; i++) {
@@ -113,7 +113,7 @@ struct ${prefix}network_run_token ${prefix}network_run_async(void *l2_buffer, si
   pi_cluster_conf_init(&conf);
   conf.id=0;
 <%
-    n_args = 4 if l3_supported else 5
+    n_args = 5 if l3_supported else 6
 %>\
   unsigned int args[${n_args}];
   args[0] = (unsigned int) l2_buffer;
@@ -141,8 +141,10 @@ struct ${prefix}network_run_token ${prefix}network_run_async(void *l2_buffer, si
 void ${prefix}network_run_wait(struct ${prefix}network_run_token token)
 {
   pi_cluster_close(&token.cluster_dev);
-  % if 'Perf_final' in verbose_level:
+  % if 'Yes' in performance:
+  #ifdef VERBOSE
   print_perf("Final", ${prefix}cycle_network_execution, ${MACs});
+  #endif
   % endif
 }
 
@@ -215,6 +217,7 @@ void ${prefix}network_run_cluster(void *args) {
 /* -------- SECTION 2 BEGIN --------- */
 /* ---------------------------------- */
   int weight_l_cnt = 0; // count how many layers with weights we have processed to increment the weights_L3 pointer
+
   for (int i = 0; i < ${len(DORY_HW_graph)}; i++) {
 /* MEMORY ALLOCATION
   - allocate memory if layer is executed from L3;
@@ -235,6 +238,7 @@ void ${prefix}network_run_cluster(void *args) {
     L2_weights = Weights_name[i];
 % endif
 
+% if 'Yes' in performance:
 % if 'Check_all' in verbose_level:
 #ifdef VERBOSE
         % if l3_supported:
@@ -256,6 +260,7 @@ void ${prefix}network_run_cluster(void *args) {
     else
       printf("Switching branch, already checked activation\n");
 #endif
+% endif
 % endif
 
     layer_args_t largs = {
@@ -292,7 +297,9 @@ void ${prefix}network_run_cluster(void *args) {
 % endif
 
 % if 'Yes' in performance:
+    #ifdef VERBOSE
     print_perf(Layers_name[i], perf_cyc, NODEs_MACS[i]);
+    #endif
 % endif
 
     // TODO: What error?
@@ -304,6 +311,7 @@ void ${prefix}network_run_cluster(void *args) {
     L3_output = temp;
     asm volatile("": : :"memory");
 
+% if 'Yes' in performance:
 #ifdef VERBOSE
     printf("Layer %s %d ended: \n", Layers_name[i], i);
 % if 'Check_all' in verbose_level:
@@ -323,6 +331,7 @@ void ${prefix}network_run_cluster(void *args) {
         checksum("final layer", L2_output, activations_out_size[i], activations_out_checksum[i][exec]);
 % endif
 #endif
+% endif
 
     // Free memory
     % if l3_supported:

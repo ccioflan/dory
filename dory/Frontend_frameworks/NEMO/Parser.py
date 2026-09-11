@@ -34,7 +34,7 @@ file_path = "/".join(os.path.realpath(__file__).split("/")[:-1])
 class onnx_manager(Parser_ONNX_to_DORY):
     # Used to manage the ONNX files. By now, supported Convolutions (PW and DW), Pooling, Fully Connected and Relu.
 
-    def __init__(self, onnx, config_file, net_prefix=""):
+    def __init__(self, onnx, config_file, net_prefix="", n_trainable_layers=0):
         layers_accepted = ['Conv', 'Pad', 'Mul', 'Add', 'Div', 'Constant', 'AveragePool', 'GlobalAveragePool', 'MaxPool', 'Cast', 'Clip', 'Floor', 'Flatten', 'Gemm', 'MatMul', 'Shape', 'Gather', 'Unsqueeze', 'Concat', 'Reshape', 'Sigmoid', 'LogSoftmax']
         layers_neglected = ['Cast', 'Floor', 'Flatten', 'Shape', 'Gather', 'Unsqueeze', 'Concat', 'Reshape', 'Sigmoid', 'LogSoftmax']
         layers_to_node = ['AveragePool', 'MaxPool', 'Conv', 'Gemm', 'MatMul', 'GlobalAveragePool']
@@ -45,7 +45,7 @@ class onnx_manager(Parser_ONNX_to_DORY):
             self.n_test_inputs = config_file["n_inputs"]
         except KeyError:
             self.n_test_inputs = 1
-        super().__init__(onnx, rules, layers_accepted, layers_neglected, layers_to_node, net_prefix)
+        super().__init__(onnx, rules, layers_accepted, layers_neglected, layers_to_node, net_prefix, n_trainable_layers)
 
     def frontend_mapping_to_DORY_nodes(self):
         print("\nNEMO Frontend: Matching patterns from generated ONNX to DORY.")
@@ -55,6 +55,7 @@ class onnx_manager(Parser_ONNX_to_DORY):
             string_matching, indexes = self.pattern_matching(node, i)
             if isinstance(string_matching, str):
                 self.DORY_Graph = Pattern_rewriter(self.DORY_Graph).execute(string_matching, indexes)
+
         print("\nNEMO Frontend: Updating Add nodes with constants.")
         for i, node in enumerate(self.DORY_Graph):
             if "Addition" in node.name:

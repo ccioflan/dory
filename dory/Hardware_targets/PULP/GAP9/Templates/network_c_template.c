@@ -131,7 +131,7 @@ struct ${prefix}network_run_token ${prefix}network_run_async(void *l2_buffer, si
   conf.icache_conf = PI_CLUSTER_MASTER_CORE_ICACHE_ENABLE | PI_CLUSTER_ICACHE_PREFETCH_ENABLE | PI_CLUSTER_ICACHE_ENABLE;
 #endif
 <%
-    n_args = 4 if l3_supported else 5
+    n_args = 5 if l3_supported else 6
 %>\
   unsigned int args[${n_args}];
   args[0] = (unsigned int) l2_buffer;
@@ -162,7 +162,9 @@ void ${prefix}network_run_wait(struct ${prefix}network_run_token token)
 {
   pi_cluster_close(&token.cluster_dev);
   % if 'Perf_final' in verbose_level:
+  #ifdef VERBOSE
   print_perf("Final", ${prefix}cycle_network_execution, ${MACs});
+  #endif
   % endif
 }
 
@@ -246,6 +248,7 @@ void ${prefix}network_run_cluster(void *args) {
   % endif
 
   int weight_l_cnt = 0; // count how many layers with weights we have processed to increment the weights_L3 pointer
+
   for (int i = 0; i < ${len(DORY_HW_graph)}; i++) {
 /* MEMORY ALLOCATION
   - allocate memory if layer is executed from L3;
@@ -332,7 +335,9 @@ void ${prefix}network_run_cluster(void *args) {
     % endif
 
     % if 'Yes' in performance:
+    #ifdef VERBOSE
     print_perf(Layers_name[i], perf_cyc, NODEs_MACS[i]);
+    #endif
     % endif
 
     % if 'Yes' in performance or 'Perf_final' in verbose_level:
@@ -473,10 +478,18 @@ void ${prefix}network_run_cluster(void *args) {
   io_cyc += pi_perf_read(PI_PERF_CYCLES);
   % endif
   % if 'Yes' in performance:
+  #ifdef VERBOSE
   print_perf("IO wait", io_cyc, 0 /*ops*/);
+  #endif
   % endif
   % if 'Perf_final' in verbose_level:
   ${prefix}cycle_network_execution += io_cyc;
+  % endif
+
+  % if 'Last' in verbose_level:
+  checksum("final output", L2_output,
+           activations_out_size[${len(DORY_HW_graph)-1}],
+           activations_out_checksum[${len(DORY_HW_graph)-1}][exec]);
   % endif
 
   //memcpy(L2_output, l2_final_output, activations_out_size[${len(DORY_HW_graph)-1}]); // BUGGY!

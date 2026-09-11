@@ -18,6 +18,7 @@
 # limitations under the License.
 
 from mako.template import Template
+from mako import exceptions
 from collections import OrderedDict
 import os
 from . import writer_utils as utils
@@ -29,6 +30,7 @@ def print_template_network(
     config_file,
     verbose_level,
     perf_layer,
+    tmpl_dir,
         app_directory,
         inc_dir_rel,
         src_dir_rel
@@ -57,6 +59,8 @@ def print_template_network(
     list_h = []
     list_name = []
     for i, node in enumerate(graph):
+        print ("Inputs: ", node.n_test_inputs)
+        print ("Layer: ", node.prefixed_name)
         MACs += node.MACs
         if "Conv" in node.name or "FullyConnected" in node.name:
             file_list_w.append(node.prefixed_name+"_weights.hex")
@@ -74,6 +78,11 @@ def print_template_network(
     list_h = list(set(list_h))
     tk['list_h'] = list_h
     tk['func_name'] = list_name
+
+    # Patch handling layers preceded by Pad layer, for which no NEMO rule exists
+    if (graph[0].n_test_inputs is None):
+        graph[0].n_test_inputs = 1
+        
     tk['n_inputs'] = graph[0].n_test_inputs
     l = ""
     for k, v in tk.items():
@@ -86,19 +95,19 @@ def print_template_network(
                 l += "// %s %s\n" % (k.ljust(30), v)
     tk['DORY_HW_graph'] = graph
     root = os.path.realpath(os.path.dirname(__file__))
-    tmpl = Template(filename=os.path.join(root, "../../Hardware_targets", HW_description["name"], "Templates/network_c_template.c"))
+    tmpl = Template(filename=os.path.join(tmpl_dir, "network_c_template.c"))
     s = tmpl.render(verbose_log=l, **tk)
     save_string = os.path.join(app_directory, src_dir_rel, prefix + 'network.c')
     with open(save_string, "w") as f:
         f.write(s)
 
-    tmpl = Template(filename=os.path.join(root, "../../Hardware_targets", HW_description["name"], "Templates/network_h_template.h"))
+    tmpl = Template(filename=os.path.join(tmpl_dir, "network_h_template.h"))
     s = tmpl.render(verbose_log=l, **tk)
     save_string = os.path.join(app_directory, inc_dir_rel, prefix + 'network.h')
     with open(save_string, "w") as f:
         f.write(s)
 
-    tmpl = Template(filename=os.path.join(root, "../../Hardware_targets", HW_description["name"], "Templates/main_template.c"))
+    tmpl = Template(filename=os.path.join(tmpl_dir, "main_template.c"))
     s = tmpl.render(verbose_log=l, **tk)
     save_string = os.path.join(app_directory, src_dir_rel, prefix + 'main.c')
     with open(save_string, "w") as f:
